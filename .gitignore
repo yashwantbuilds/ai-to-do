@@ -1,0 +1,8 @@
+# H2 Database files
+/data/*.db
+/data/*.mv.db
+/data/*.trace.db
+/data/*.lock.db
+
+# Keep the data directory
+!/data/.gitkeep 
