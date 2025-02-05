@@ -56,6 +56,9 @@ public class Task {
     @JsonIgnore
     private List<SubTask> subtasks = new ArrayList<>();
     
+    @Column(name = "scheduled_time")
+    private LocalDateTime scheduledTime;
+    
     public Task() {
         this.createdAt = LocalDateTime.now();
     }
@@ -75,5 +78,13 @@ public class Task {
     
     public enum Priority {
         LOW, MEDIUM, HIGH
+    }
+
+    public LocalDateTime getScheduledTime() {
+        return scheduledTime;
+    }
+
+    public void setScheduledTime(LocalDateTime scheduledTime) {
+        this.scheduledTime = scheduledTime;
     }
 } 

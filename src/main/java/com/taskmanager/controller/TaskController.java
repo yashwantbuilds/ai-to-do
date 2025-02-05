@@ -288,4 +288,17 @@ public class TaskController {
         SubTask updatedSubtask = taskService.updateSubtask(taskId, subtaskId, request.getTitle());
         return ResponseEntity.ok(updatedSubtask);
     }
+
+    @PutMapping("/{id}/reset-duration")
+    public ResponseEntity<Task> resetTaskDuration(@PathVariable Long id) {
+        return taskRepository.findById(id)
+            .map(task -> {
+                task.setStartedAt(null);
+                task.setPausedAt(null);
+                task.setTotalPausedTime(0L);
+                task.setStatus(TaskStatus.NOT_STARTED);
+                return ResponseEntity.ok(taskRepository.save(task));
+            })
+            .orElse(ResponseEntity.notFound().build());
+    }
 }

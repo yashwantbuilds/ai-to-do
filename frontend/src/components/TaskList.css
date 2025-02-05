@@ -114,8 +114,10 @@
 .task-status-section {
   display: flex;
   align-items: center;
-  gap: 15px;
-  flex-direction: row;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 8px 0;
+  flex-wrap: wrap;
 }
 
 .task-status-section .priority {
@@ -153,9 +155,9 @@
 }
 
 .elapsed-time.completed {
-  background-color: #e3f2fd;
-  color: #1976d2;
-  border: 1px solid #90caf9;
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
 }
 
 .task-actions {
@@ -203,49 +205,118 @@
   color: rgba(255, 255, 255, 0.9);
 }
 
-/* Duration indicators */
+/* Duration indicators for light theme */
 .task-card.duration-yellow {
   border-left-color: #ffc107;
+  background: linear-gradient(
+    to right,
+    rgba(255, 193, 7, 0.05) 0%,
+    var(--card-bg) 50%
+  );
 }
 
 .task-card.duration-orange {
   border-left-color: #fd7e14;
+  background: linear-gradient(
+    to right,
+    rgba(253, 126, 20, 0.05) 0%,
+    var(--card-bg) 50%
+  );
 }
 
 .task-card.duration-red {
   border-left-color: #dc3545;
+  background: linear-gradient(
+    to right,
+    rgba(220, 53, 69, 0.05) 0%,
+    var(--card-bg) 50%
+  );
 }
 
 .task-card.duration-blue {
   border-left-color: #007bff;
+  background: linear-gradient(
+    to right,
+    rgba(0, 123, 255, 0.05) 0%,
+    var(--card-bg) 50%
+  );
 }
 
-/* Dark theme adjustments */
-[data-theme='dark'] .task-card {
-  background: rgba(45, 45, 45, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+/* Dark theme adjustments for duration indicators */
+[data-theme='dark'] .task-card.duration-yellow {
+  border-left-color: #ffd54f;
+  background: linear-gradient(
+    to right,
+    rgba(255, 213, 79, 0.15) 0%,
+    rgba(45, 45, 45, 0.95) 50%
+  );
 }
 
-[data-theme='dark'] .task-card h3 {
-  color: rgba(255, 255, 255, 0.95);
+[data-theme='dark'] .task-card.duration-orange {
+  border-left-color: #ff9800;
+  background: linear-gradient(
+    to right,
+    rgba(255, 152, 0, 0.15) 0%,
+    rgba(45, 45, 45, 0.95) 50%
+  );
 }
 
-[data-theme='dark'] .elapsed-time.active {
-  background-color: rgba(46, 125, 50, 0.2);
-  border-color: rgba(46, 125, 50, 0.4);
-  color: #81c784;
+[data-theme='dark'] .task-card.duration-red {
+  border-left-color: #ff5252;
+  background: linear-gradient(
+    to right,
+    rgba(255, 82, 82, 0.15) 0%,
+    rgba(45, 45, 45, 0.95) 50%
+  );
 }
 
-[data-theme='dark'] .elapsed-time.paused {
-  background-color: rgba(245, 124, 0, 0.2);
-  border-color: rgba(245, 124, 0, 0.4);
-  color: #ffb74d;
+[data-theme='dark'] .task-card.duration-blue {
+  border-left-color: #64b5f6;
+  background: linear-gradient(
+    to right,
+    rgba(100, 181, 246, 0.15) 0%,
+    rgba(45, 45, 45, 0.95) 50%
+  );
 }
 
-[data-theme='dark'] .elapsed-time.completed {
-  background-color: rgba(25, 118, 210, 0.2);
-  border-color: rgba(25, 118, 210, 0.4);
-  color: #64b5f6;
+/* Hover effects for duration indicators */
+.task-card.duration-yellow:hover,
+.task-card.duration-orange:hover,
+.task-card.duration-red:hover,
+.task-card.duration-blue:hover {
+  background-position: right center;
+}
+
+[data-theme='dark'] .task-card.duration-yellow:hover {
+  background: linear-gradient(
+    to right,
+    rgba(255, 213, 79, 0.2) 0%,
+    rgba(45, 45, 45, 0.95) 60%
+  );
+}
+
+[data-theme='dark'] .task-card.duration-orange:hover {
+  background: linear-gradient(
+    to right,
+    rgba(255, 152, 0, 0.2) 0%,
+    rgba(45, 45, 45, 0.95) 60%
+  );
+}
+
+[data-theme='dark'] .task-card.duration-red:hover {
+  background: linear-gradient(
+    to right,
+    rgba(255, 82, 82, 0.2) 0%,
+    rgba(45, 45, 45, 0.95) 60%
+  );
+}
+
+[data-theme='dark'] .task-card.duration-blue:hover {
+  background: linear-gradient(
+    to right,
+    rgba(100, 181, 246, 0.2) 0%,
+    rgba(45, 45, 45, 0.95) 60%
+  );
 }
 
 .task-filters {
@@ -313,6 +384,7 @@
   align-items: center;
   gap: 8px;
   margin-top: 6px;
+  flex-wrap: wrap;
 }
 
 .backlog-badge {
@@ -372,7 +444,7 @@
   position: fixed;
   bottom: -100%;
   left: 20px;
-  width: 300px;
+  width: 350px;
   background: var(--card-bg);
   border-radius: 8px;
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
@@ -529,35 +601,10 @@
   position: relative;
 }
 
-.total-time-worked {
-  position: absolute;
-  left: 20px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  font-weight: 500;
-  color: var(--text-color);
-  box-shadow: var(--shadow);
-}
-
-.time-icon {
-  font-size: 1.2em;
-}
-
 /* Center the main heading */
 .task-list-header h2 {
   flex: 1;
   text-align: center;
-}
-
-/* Dark theme adjustments */
-[data-theme='dark'] .total-time-worked {
-  background: rgba(45, 45, 45, 0.95);
-  border-color: rgba(255, 255, 255, 0.1);
 }
 
 /* Add view toggle styles */
@@ -824,4 +871,250 @@
   color: #ff6b6b;
   border-color: #ff6b6b;
   background-color: rgba(255, 107, 107, 0.1);
+}
+
+.schedule-time {
+  margin: 8px 0;
+}
+
+.schedule-time label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+.edit-scheduled-time {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  background: var(--card-bg);
+  color: var(--text-color);
+  box-sizing: border-box;
+}
+
+.edit-scheduled-time:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* Dark theme adjustments */
+[data-theme='dark'] .edit-scheduled-time {
+  background: rgba(35, 35, 35, 0.95);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+[data-theme='dark'] .edit-scheduled-time:focus {
+  border-color: #0056b3;
+}
+
+.scheduled-time-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  height: 26px;
+  background-color: rgba(25, 118, 210, 0.1);
+  color: #1976d2;
+  border: 1px solid rgba(25, 118, 210, 0.2);
+  white-space: nowrap;
+}
+
+/* Dark theme adjustment */
+[data-theme='dark'] .scheduled-time-badge {
+  background-color: rgba(25, 118, 210, 0.15);
+  border-color: rgba(25, 118, 210, 0.3);
+  color: #64b5f6;
+}
+
+.task-schedule {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #1976d2;
+  margin: 4px 0;
+  padding: 4px 8px;
+  background-color: rgba(25, 118, 210, 0.1);
+  border-radius: 4px;
+  width: fit-content;
+}
+
+.schedule-icon {
+  font-size: 1rem;
+}
+
+/* Dark theme adjustment */
+[data-theme='dark'] .task-schedule {
+  color: #64b5f6;
+  background-color: rgba(25, 118, 210, 0.15);
+}
+
+/* Update scheduled task card styles */
+.task-card.has-schedule {
+  border-left-color: #1976d2;
+  background: linear-gradient(
+    to right,
+    rgba(25, 118, 210, 0.05) 0%,
+    var(--card-bg) 50%
+  );
+  position: relative;
+  overflow: hidden;
+}
+
+.task-card.has-schedule::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(to bottom, #1976d2, #64b5f6);
+  border-radius: 2px;
+}
+
+/* Dark theme adjustments */
+[data-theme='dark'] .task-card.has-schedule {
+  border-left-color: #64b5f6;
+  background: linear-gradient(
+    to right,
+    rgba(100, 181, 246, 0.1) 0%,
+    rgba(45, 45, 45, 0.95) 50%
+  );
+}
+
+[data-theme='dark'] .task-card.has-schedule::before {
+  background: linear-gradient(to bottom, #64b5f6, #90caf9);
+}
+
+/* Hover effects */
+.task-card.has-schedule:hover {
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.15);
+  transform: translateX(4px);
+  background: linear-gradient(
+    to right,
+    rgba(25, 118, 210, 0.08) 0%,
+    var(--card-bg) 60%
+  );
+}
+
+[data-theme='dark'] .task-card.has-schedule:hover {
+  box-shadow: 0 4px 15px rgba(100, 181, 246, 0.2);
+  background: linear-gradient(
+    to right,
+    rgba(100, 181, 246, 0.15) 0%,
+    rgba(45, 45, 45, 0.95) 60%
+  );
+}
+
+/* Update elapsed time completed style */
+.elapsed-time.completed {
+  background-color: #e8f5e9;  /* Light green background */
+  color: #2e7d32;  /* Dark green text */
+  border: 1px solid #a5d6a7;  /* Green border */
+}
+
+/* Dark theme adjustment for completed tasks */
+[data-theme='dark'] .elapsed-time.completed {
+  background-color: rgba(46, 125, 50, 0.2);  /* Semi-transparent green */
+  border-color: rgba(46, 125, 50, 0.4);  /* Semi-transparent green border */
+  color: #81c784;  /* Light green text */
+}
+
+/* Update task card completed status */
+.task-card.completed {
+  border-left-color: #2e7d32;  /* Dark green border */
+  background: linear-gradient(
+    to right,
+    rgba(46, 125, 50, 0.05) 0%,
+    var(--card-bg) 50%
+  );
+}
+
+/* Dark theme adjustment for completed task cards */
+[data-theme='dark'] .task-card.completed {
+  border-left-color: #81c784;
+  background: linear-gradient(
+    to right,
+    rgba(129, 199, 132, 0.15) 0%,
+    rgba(45, 45, 45, 0.95) 50%
+  );
+}
+
+.reset-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 40px;
+  background: transparent;
+}
+
+.reset-btn:hover {
+  transform: scale(1.1);
+  color: #6c757d;
+}
+
+/* Dark theme adjustment */
+[data-theme='dark'] .reset-btn:hover {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.total-time {
+  position: absolute;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Courier New', monospace;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-color);
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.total-time:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+}
+
+.time-icon {
+  font-size: 1rem;
+  opacity: 0.8;
+}
+
+.time-label {
+  letter-spacing: 0.5px;
+}
+
+/* Dark theme adjustment */
+[data-theme='dark'] .total-time {
+  background: rgba(45, 45, 45, 0.95);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme='dark'] .total-time:hover {
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.15);
 } 

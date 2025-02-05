@@ -6,7 +6,12 @@ import { API_BASE_URL, API_CONFIG } from '../api/config';
 
 function TaskList() {
   const [tasks, setTasks] = useState([]);
-  const [newTask, setNewTask] = useState({ title: '', description: '', priority: 'MEDIUM' });
+  const [newTask, setNewTask] = useState({ 
+    title: '', 
+    description: '', 
+    priority: 'MEDIUM',
+    scheduledTime: ''
+  });
   const [showBacklog, setShowBacklog] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isFormVisible, setIsFormVisible] = useState(false);
@@ -29,7 +34,7 @@ function TaskList() {
     e.preventDefault();
     try {
       await axios.post(`${API_BASE_URL}/tasks`, newTask, API_CONFIG);
-      setNewTask({ title: '', description: '', priority: 'MEDIUM' });
+      setNewTask({ title: '', description: '', priority: 'MEDIUM', scheduledTime: '' });
       fetchTasks();
     } catch (error) {
       console.error('Error creating task:', error);
@@ -80,6 +85,18 @@ function TaskList() {
         fetchTasks();
       } catch (error) {
         console.error('Error deleting task:', error);
+      }
+    }
+  };
+
+  const handleResetDuration = async (taskId, e) => {
+    e.preventDefault(); // Prevent navigation
+    if (window.confirm('Are you sure you want to reset the duration for this task?')) {
+      try {
+        await axios.put(`${API_BASE_URL}/tasks/${taskId}/reset-duration`, {}, API_CONFIG);
+        fetchTasks();
+      } catch (error) {
+        console.error('Error resetting task duration:', error);
       }
     }
   };
@@ -215,17 +232,24 @@ function TaskList() {
   const formatTotalTime = (totalSeconds) => {
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
-    return `${hours}h ${minutes}m`;
+    const seconds = totalSeconds % 60;
+    return `Today: ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
   return (
     <div className="task-list">
       <div className="task-list-header">
-        <div className="total-time-worked">
+        <div className="total-time">
           <span className="time-icon">⏱️</span>
-          Today: {formatTotalTime(calculateTotalTimeWorkedToday(tasks))}
+          <span className="time-label">{formatTotalTime(calculateTotalTimeWorkedToday(tasks))}</span>
         </div>
-        <h2>{showBacklog ? 'Backlog Tasks' : 'Active Tasks'}</h2>
+        <h2>
+          {filterType === 'completed' 
+            ? 'Completed Tasks'
+            : filterType === 'backlog'
+            ? 'Backlog Tasks'
+            : 'Active Tasks'}
+        </h2>
       </div>
       <div className="task-filters">
         <button 
@@ -253,7 +277,9 @@ function TaskList() {
           <div key={task.id} className="task-card-wrapper">
             <Link 
               to={`/task/${task.id}`} 
-              className={`task-card ${getTaskDurationClass(task.createdAt)}`}
+              className={`task-card ${getTaskDurationClass(task.createdAt)} ${
+                task.scheduledTime ? 'has-schedule' : ''
+              } ${task.status === 'COMPLETED' ? 'completed' : ''}`}
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -264,12 +290,23 @@ function TaskList() {
                     <span className="do-it-today">Do it today</span>
                   )}
                 </div>
+                {task.scheduledTime && (
+                  <div className="task-schedule">
+                    <span className="schedule-icon">🗓️</span>
+                    {new Date(task.scheduledTime).toLocaleString('en-US', { 
+                      timeZone: 'Asia/Kolkata',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: true
+                    })} IST
+                  </div>
+                )}
                 <p>{task.description}</p>
                 <div className="task-meta">
                   {task.inBacklog && <span className="backlog-badge">Backlog</span>}
-                  <span className="date">
-                    {getTaskDurationText(task)}
-                  </span>
+                  <span className="date">{getTaskDurationText(task)}</span>
                 </div>
               </div>
 
@@ -287,6 +324,19 @@ function TaskList() {
                 {task.status === 'COMPLETED' && (
                   <div className="elapsed-time completed">
                     ✅ {formatElapsedTime(calculateElapsedSeconds(task))}
+                  </div>
+                )}
+                
+                {task.scheduledTime && (
+                  <div className="scheduled-time-badge">
+                    🗓️ {new Date(task.scheduledTime).toLocaleString('en-US', { 
+                      timeZone: 'Asia/Kolkata',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: true
+                    })} IST
                   </div>
                 )}
                 
@@ -333,6 +383,15 @@ function TaskList() {
                       ✅
                     </button>
                   </>
+                )}
+                {task.startedAt && (
+                  <button 
+                    className="action-btn reset-btn"
+                    onClick={(e) => handleResetDuration(task.id, e)}
+                    title="Reset Duration"
+                  >
+                    🔄
+                  </button>
                 )}
                 <button 
                   className="action-btn backlog-btn"
@@ -381,6 +440,16 @@ function TaskList() {
                 onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
                 required
               />
+              <div className="schedule-time">
+                <label htmlFor="scheduledTime">Schedule Time (IST)</label>
+                <input
+                  type="datetime-local"
+                  id="scheduledTime"
+                  value={newTask.scheduledTime}
+                  onChange={(e) => setNewTask({ ...newTask, scheduledTime: e.target.value })}
+                  className="edit-scheduled-time"
+                />
+              </div>
               <select
                 value={newTask.priority}
                 onChange={(e) => setNewTask({ ...newTask, priority: e.target.value })}

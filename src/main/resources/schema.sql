@@ -16,7 +16,8 @@ CREATE TABLE tasks (
     paused_at TIMESTAMP,
     completed_at TIMESTAMP,
     total_paused_time BIGINT DEFAULT 0,
-    notes VARCHAR(4000)
+    notes VARCHAR(4000),
+    scheduled_time TIMESTAMP
 );
 
 -- Create dependent tables

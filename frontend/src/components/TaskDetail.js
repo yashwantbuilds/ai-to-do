@@ -24,6 +24,16 @@ function TaskDetail() {
   const [editedSubtaskTitle, setEditedSubtaskTitle] = useState('');
   const [saveSubtaskTimeout, setSaveSubtaskTimeout] = useState(null);
   const [editedPriority, setEditedPriority] = useState('');
+  const [editedScheduledTime, setEditedScheduledTime] = useState(
+    task?.scheduledTime ? new Date(task.scheduledTime).toLocaleString('en-US', { 
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    }) : ''
+  );
 
   useEffect(() => {
     fetchTask();
@@ -177,18 +187,16 @@ function TaskDetail() {
 
   const handleSave = async () => {
     try {
-      const response = await axios.put(
-        `${API_BASE_URL}/tasks/${id}`,
-        {
-          ...task,
-          title: editedTitle,
-          description: editedDescription,
-          priority: editedPriority
-        },
-        API_CONFIG
-      );
-      setTask(response.data);
+      const updatedTask = {
+        title: editedTitle,
+        description: editedDescription,
+        priority: editedPriority,
+        scheduledTime: editedScheduledTime ? new Date(editedScheduledTime).toISOString() : null
+      };
+
+      await axios.put(`${API_BASE_URL}/tasks/${id}`, updatedTask, API_CONFIG);
       setIsEditing(false);
+      fetchTask();
     } catch (error) {
       console.error('Error updating task:', error);
     }
@@ -418,6 +426,16 @@ function TaskDetail() {
               <option value="MEDIUM">Medium</option>
               <option value="HIGH">High</option>
             </select>
+            <div className="schedule-time">
+              <label htmlFor="scheduledTime">Schedule Time (IST)</label>
+              <input
+                type="datetime-local"
+                id="scheduledTime"
+                value={editedScheduledTime}
+                onChange={(e) => setEditedScheduledTime(e.target.value)}
+                className="edit-scheduled-time"
+              />
+            </div>
             <div className="edit-actions">
               <button onClick={handleSave} className="save-btn">Save</button>
               <button onClick={handleCancel} className="cancel-btn">Cancel</button>
@@ -507,6 +525,20 @@ function TaskDetail() {
               {task.inBacklog && <span className="backlog-badge">Backlog</span>}
               <span className="date">Created: {new Date(task.createdAt).toLocaleDateString()}</span>
             </div>
+            {task.scheduledTime && (
+              <div className="scheduled-time">
+                <span className="schedule-icon">🗓️</span>
+                Scheduled for: {new Date(task.scheduledTime).toLocaleString('en-US', { 
+                  timeZone: 'Asia/Kolkata',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: true
+                })} IST
+              </div>
+            )}
           </>
         )}
       </div>

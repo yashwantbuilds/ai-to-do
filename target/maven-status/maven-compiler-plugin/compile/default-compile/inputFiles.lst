@@ -14,4 +14,3 @@
 /Users/yrathore/IdeaProjects/AI-todo/src/main/java/com/taskmanager/dto/SubtaskUpdateRequest.java
 /Users/yrathore/IdeaProjects/AI-todo/src/main/java/com/taskmanager/repository/TaskRepository.java
 /Users/yrathore/IdeaProjects/AI-todo/src/main/java/com/taskmanager/config/JacksonConfig.java
-/Users/yrathore/IdeaProjects/AI-todo/src/main/java/com/taskmanager/controller/NotesController.java

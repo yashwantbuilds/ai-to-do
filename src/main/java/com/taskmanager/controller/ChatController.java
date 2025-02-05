@@ -58,76 +58,16 @@ public class ChatController {
     private String generateDurationMessage(Task task) {
         LocalDateTime now = LocalDateTime.now();
         long daysPassed = ChronoUnit.DAYS.between(task.getCreatedAt(), now);
-        long elapsedSeconds = 0;
         
-        if (task.getStartedAt() != null) {
-            LocalDateTime endTime = task.getCompletedAt() != null ? 
-                task.getCompletedAt() : 
-                (task.getStatus() == TaskStatus.PAUSED ? task.getPausedAt() : now);
-            
-            elapsedSeconds = ChronoUnit.SECONDS.between(task.getStartedAt(), endTime);
-            elapsedSeconds -= task.getTotalPausedTime();
-        }
-
         StringBuilder prompt = new StringBuilder();
+        if (daysPassed == 0) {
+            prompt.append("This task was created today. Provide a quick, motivating message to get started immediately.");
+        } else {
+            prompt.append("⏰ This task has been pending for ").append(daysPassed)
+                  .append(daysPassed == 1 ? " day" : " days")
+                  .append(". Give a crisp reminder about urgency and one immediate action step.");
+        }
         
-        // Add task status context
-        switch (task.getStatus()) {
-            case COMPLETED:
-                prompt.append("Great job completing this task! ");
-                prompt.append(String.format("You spent %d hours and %d minutes on it. ", 
-                    elapsedSeconds / 3600, (elapsedSeconds % 3600) / 60));
-                break;
-                
-            case IN_PROGRESS:
-                prompt.append("You're currently working on this task. ");
-                prompt.append(String.format("You've spent %d hours and %d minutes so far. ", 
-                    elapsedSeconds / 3600, (elapsedSeconds % 3600) / 60));
-                break;
-                
-            case PAUSED:
-                prompt.append("This task is currently paused. ");
-                prompt.append(String.format("You've spent %d hours and %d minutes on it. ", 
-                    elapsedSeconds / 3600, (elapsedSeconds % 3600) / 60));
-                break;
-                
-            case NOT_STARTED:
-                if (daysPassed == 0) {
-                    prompt.append("This task was created today. Let's get started! ");
-                } else {
-                    prompt.append(String.format("This task has been waiting for %d %s. ", 
-                        daysPassed, daysPassed == 1 ? "day" : "days"));
-                }
-                break;
-        }
-
-        // Add urgency context based on creation date
-        if (task.getStatus() != TaskStatus.COMPLETED) {
-            if (daysPassed >= 3) {
-                prompt.append("This task requires immediate attention as it's been pending for several days. ");
-            } else if (daysPassed >= 1) {
-                prompt.append("Consider prioritizing this task soon. ");
-            }
-        }
-
-        // Add priority-based guidance
-        prompt.append("Given its ").append(task.getPriority().toString().toLowerCase())
-              .append(" priority, ");
-        
-        if (task.getStatus() != TaskStatus.COMPLETED) {
-            switch (task.getPriority()) {
-                case HIGH:
-                    prompt.append("this task should be your main focus.");
-                    break;
-                case MEDIUM:
-                    prompt.append("try to complete this task after any high-priority items.");
-                    break;
-                case LOW:
-                    prompt.append("handle this when you have capacity after higher priority tasks.");
-                    break;
-            }
-        }
-
         return huggingFaceService.generateResponse(prompt.toString(), task.getId());
     }
 
