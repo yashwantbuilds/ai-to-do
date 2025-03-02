@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './TaskDetail.css';
@@ -34,6 +34,16 @@ function TaskDetail() {
       minute: '2-digit'
     }) : ''
   );
+  const [allTasks, setAllTasks] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const searchRef = useRef(null);
+  const [isChatMaximized, setIsChatMaximized] = useState(false);
+  const [showAISubtaskPrompt, setShowAISubtaskPrompt] = useState(false);
+  const [aiSubtaskPrompt, setAISubtaskPrompt] = useState('');
+  const [generatedSubtasks, setGeneratedSubtasks] = useState([]);
+  const [showSubtaskReview, setShowSubtaskReview] = useState(false);
+  const [selectedSubtasks, setSelectedSubtasks] = useState(new Set());
 
   useEffect(() => {
     fetchTask();
@@ -85,6 +95,18 @@ function TaskDetail() {
       document.title = 'Task Manager';
     };
   }, [task]); // Re-run when task changes
+
+  useEffect(() => {
+    const fetchAllTasks = async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/tasks`, API_CONFIG);
+        setAllTasks(response.data);
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+      }
+    };
+    fetchAllTasks();
+  }, []);
 
   const fetchTask = async () => {
     try {
@@ -397,10 +419,308 @@ function TaskDetail() {
     }
   };
 
+  const handleTaskSelect = (taskId) => {
+    setSearchQuery('');
+    setShowSearchResults(false);
+    navigate(`/task/${taskId}`, { replace: true });
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setShowSearchResults(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Update the insertFormatting function
+  const insertFormatting = (format, e) => {
+    // Prevent the textarea from losing focus
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const textarea = document.querySelector('.notes-textarea');
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    let prefix = '';
+    let suffix = '';
+
+    switch (format) {
+      case 'h1':
+        prefix = '# ';
+        suffix = '\n';
+        break;
+      case 'h2':
+        prefix = '## ';
+        suffix = '\n';
+        break;
+      case 'h3':
+        prefix = '### ';
+        suffix = '\n';
+        break;
+      case 'h4':
+        prefix = '#### ';
+        suffix = '\n';
+        break;
+      case 'bold':
+        prefix = '**';
+        suffix = '**';
+        break;
+      case 'italic':
+        prefix = '_';
+        suffix = '_';
+        break;
+      case 'code':
+        prefix = '`';
+        suffix = '`';
+        break;
+      default:
+        return;
+    }
+
+    const newText = text.substring(0, start) + prefix + 
+                   text.substring(start, end) + suffix + 
+                   text.substring(end);
+    
+    setNotes(newText);
+    // Update the notes in the backend
+    saveNotes(newText);
+    
+    // Restore focus to textarea
+    textarea.focus();
+  };
+
+  // Update the formatNotesDisplay function
+  const formatNotesDisplay = (text) => {
+    if (!text) return null;
+    
+    return text.split('\n').map((line, index) => {
+      // Handle headings
+      if (line.startsWith('#### ')) {
+        return <h4 key={index}>{line.substring(5)}</h4>;
+      }
+      if (line.startsWith('### ')) {
+        return <h3 key={index}>{line.substring(4)}</h3>;
+      }
+      if (line.startsWith('## ')) {
+        return <h2 key={index}>{line.substring(3)}</h2>;
+      }
+      if (line.startsWith('# ')) {
+        return <h1 key={index}>{line.substring(2)}</h1>;
+      }
+
+      // Split content into parts to handle links and other formatting
+      const parts = line.split(/(\s+)/);
+      const formattedParts = parts.map((part, partIndex) => {
+        // Handle links
+        if (part.match(/^(https?:\/\/[^\s]+)$/)) {
+          return `<a href="${part}" class="notes-link" target="_blank" rel="noopener noreferrer">${part}</a>`;
+        }
+
+        // Handle code snippets
+        if (part.match(/`([^`]+)`/)) {
+          return part.replace(/`([^`]+)`/g, (_, code) => 
+            `<code>${code}</code>`
+          );
+        }
+        
+        // Handle bold
+        if (part.match(/\*\*([^*]+)\*\*/)) {
+          return part.replace(/\*\*([^*]+)\*\*/g, (_, bold) => 
+            `<strong>${bold}</strong>`
+          );
+        }
+        
+        // Handle italic
+        if (part.match(/_([^_]+)_/)) {
+          return part.replace(/_([^_]+)_/g, (_, italic) => 
+            `<em>${italic}</em>`
+          );
+        }
+
+        return part;
+      });
+
+      // Return paragraph with HTML string
+      return (
+        <p 
+          key={index} 
+          dangerouslySetInnerHTML={{ 
+            __html: formattedParts.join('') 
+          }} 
+          onClick={(e) => {
+            // Prevent editing when clicking links
+            if (e.target.tagName === 'A') {
+              e.stopPropagation();
+            }
+          }}
+        />
+      );
+    });
+  };
+
+  // Add this effect to handle clicks outside notes section
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setIsEditingNotes(false);
+      }
+    };
+
+    if (isEditingNotes) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isEditingNotes]);
+
+  // Add this function to handle escape key
+  const handleNotesKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      setIsEditingNotes(false);
+    }
+  };
+
+  // Add this function near other task-related functions
+  const createSubtask = async (title) => {
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/tasks/${id}/subtasks`,
+        { title },
+        API_CONFIG
+      );
+      // Update the subtasks list
+      setSubtasks([...subtasks, response.data]);
+    } catch (error) {
+      console.error('Error creating subtask:', error);
+    }
+  };
+
+  // Update the handleAISubtaskGeneration function
+  const handleAISubtaskGeneration = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/tasks/${id}/generate-subtasks`,
+        { prompt: aiSubtaskPrompt },
+        API_CONFIG
+      );
+      
+      // Show the review dialog with generated subtasks
+      if (response.data && response.data.length > 0) {
+        setGeneratedSubtasks(response.data);
+        setSelectedSubtasks(new Set(response.data.map((_, index) => index)));
+        setShowSubtaskReview(true);
+      }
+    } catch (error) {
+      console.error('Error generating subtasks:', error);
+    }
+  };
+
+  // Add function to handle subtask selection
+  const handleSubtaskSelection = (index) => {
+    const newSelected = new Set(selectedSubtasks);
+    if (newSelected.has(index)) {
+      newSelected.delete(index);
+    } else {
+      newSelected.add(index);
+    }
+    setSelectedSubtasks(newSelected);
+  };
+
+  // Add function to handle subtask creation after review
+  const handleCreateSelectedSubtasks = async () => {
+    try {
+      // Create selected subtasks in parallel
+      await Promise.all(
+        Array.from(selectedSubtasks).map(index => 
+          createSubtask(generatedSubtasks[index])
+        )
+      );
+      
+      // Clear states and close review
+      setGeneratedSubtasks([]);
+      setSelectedSubtasks(new Set());
+      setShowSubtaskReview(false);
+      setShowAISubtaskPrompt(false);
+      setAISubtaskPrompt('');
+    } catch (error) {
+      console.error('Error creating subtasks:', error);
+    }
+  };
+
+  // Add this helper function for priority sorting
+  const getPriorityWeight = (priority) => {
+    switch (priority?.toUpperCase()) {
+      case 'HIGH': return 3;
+      case 'MEDIUM': return 2;
+      case 'LOW': return 1;
+      default: return 0;
+    }
+  };
+
   if (!task) return <div>Loading...</div>;
 
   return (
     <div className="task-detail">
+      <div className="task-search" ref={searchRef}>
+        <input
+          type="text"
+          placeholder="Search tasks..."
+          value={searchQuery}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setShowSearchResults(true);
+          }}
+          onFocus={() => setShowSearchResults(true)}
+        />
+        {showSearchResults && searchQuery && (
+          <div className="search-results">
+            {allTasks
+              .filter(t => 
+                t.title.toLowerCase().includes(searchQuery.toLowerCase())
+              )
+              .sort((a, b) => {
+                // First sort by backlog status
+                if (a.inBacklog !== b.inBacklog) {
+                  return a.inBacklog ? 1 : -1;
+                }
+                // Then sort by priority within each group
+                const priorityDiff = getPriorityWeight(b.priority) - getPriorityWeight(a.priority);
+                if (priorityDiff !== 0) return priorityDiff;
+                // Finally sort by creation date
+                return new Date(b.createdAt) - new Date(a.createdAt);
+              })
+              .map(t => (
+                <div
+                  key={t.id}
+                  className={`search-result-item ${t.id === task?.id ? 'current' : ''}`}
+                  onClick={() => handleTaskSelect(t.id)}
+                >
+                  <span className="task-title">
+                    {t.priority && (
+                      <span className={`priority-indicator ${t.priority.toLowerCase()}`}>
+                        {t.priority === 'HIGH' ? '🔴' : t.priority === 'MEDIUM' ? '🟡' : '🟢'}
+                      </span>
+                    )}
+                    {t.title}
+                  </span>
+                  <span className={`task-status ${t.status.toLowerCase()}`}>
+                    {t.status.replace('_', ' ')}
+                  </span>
+                </div>
+              ))}
+          </div>
+        )}
+      </div>
       <div className="task-info">
         {isEditing ? (
           <>
@@ -544,7 +864,20 @@ function TaskDetail() {
       </div>
 
       <div className="subtasks-section">
-        <h3>Subtasks</h3>
+        <div className="subtasks-header">
+          <h3>Subtasks</h3>
+          <div className="subtask-actions">
+            <button 
+              className="ai-subtask-btn"
+              onClick={() => setShowAISubtaskPrompt(!showAISubtaskPrompt)}
+              title="Generate subtasks using AI"
+            >
+              🤖 AI Assist
+            </button>
+          </div>
+        </div>
+        
+        {/* Manual subtask form - always visible */}
         <form onSubmit={handleAddSubtask} className="subtask-form">
           <input
             type="text"
@@ -554,7 +887,72 @@ function TaskDetail() {
           />
           <button type="submit">Add</button>
         </form>
-        <div className="subtasks-list">
+
+        {/* AI subtask form */}
+        {showAISubtaskPrompt && (
+          <form onSubmit={handleAISubtaskGeneration} className="ai-subtask-form">
+            <input
+              type="text"
+              value={aiSubtaskPrompt}
+              onChange={(e) => setAISubtaskPrompt(e.target.value)}
+              placeholder="Describe what subtasks you need help with..."
+              className="ai-subtask-input"
+            />
+            <button type="submit" disabled={!aiSubtaskPrompt.trim()}>
+              Generate
+            </button>
+            <button 
+              type="button" 
+              onClick={() => {
+                setShowAISubtaskPrompt(false);
+                setAISubtaskPrompt('');
+              }}
+              className="cancel-btn"
+            >
+              Cancel
+            </button>
+          </form>
+        )}
+
+        {showSubtaskReview && (
+          <div className="subtask-review">
+            <h4>Review Generated Subtasks</h4>
+            <div className="subtask-review-list">
+              {generatedSubtasks.map((subtask, index) => (
+                <div key={index} className="subtask-review-item">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={selectedSubtasks.has(index)}
+                      onChange={() => handleSubtaskSelection(index)}
+                    />
+                    <span>{subtask}</span>
+                  </label>
+                </div>
+              ))}
+            </div>
+            <div className="subtask-review-actions">
+              <button 
+                onClick={handleCreateSelectedSubtasks}
+                disabled={selectedSubtasks.size === 0}
+              >
+                Create Selected ({selectedSubtasks.size})
+              </button>
+              <button 
+                onClick={() => {
+                  setShowSubtaskReview(false);
+                  setGeneratedSubtasks([]);
+                  setSelectedSubtasks(new Set());
+                }}
+                className="cancel-btn"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="subtask-list">
           {subtasks.map(subtask => (
             <div key={subtask.id} className="subtask-item">
               <div className={`subtask-content ${editingSubtaskId === subtask.id ? 'editing' : ''}`}>
@@ -629,33 +1027,56 @@ function TaskDetail() {
         <div className={`notes-section ${isNotesMaximized ? 'maximized' : ''}`}>
           <div className="notes-header">
             <h3>Notes</h3>
+            <div className="formatting-toolbar">
+              <button onClick={(e) => insertFormatting('h1', e)} title="Heading 1" type="button">H1</button>
+              <button onClick={(e) => insertFormatting('h2', e)} title="Heading 2" type="button">H2</button>
+              <button onClick={(e) => insertFormatting('h3', e)} title="Heading 3" type="button">H3</button>
+              <button onClick={(e) => insertFormatting('h4', e)} title="Heading 4" type="button">H4</button>
+              <span className="divider">|</span>
+              <button onClick={(e) => insertFormatting('bold', e)} title="Bold" type="button">B</button>
+              <button onClick={(e) => insertFormatting('italic', e)} title="Italic" type="button">I</button>
+              <button onClick={(e) => insertFormatting('code', e)} title="Code" type="button">{`<>`}</button>
+            </div>
             <button 
               className="maximize-btn"
               onClick={() => setIsNotesMaximized(!isNotesMaximized)}
+              title={isNotesMaximized ? "Minimize" : "Maximize"}
             >
-              {isNotesMaximized ? '⟱' : '⟰'}
+              {isNotesMaximized ? '⎯' : '⤢'}
             </button>
           </div>
-          {isEditingNotes ? (
-            <textarea
-              className="notes-textarea"
-              value={notes}
-              onChange={handleNotesChange}
-              placeholder="Add your notes here..."
-              onBlur={() => setIsEditingNotes(false)}
-            />
-          ) : (
-            <div 
-              className="notes-display"
-              onClick={() => setIsEditingNotes(true)}
-            >
-              {formatNotesWithLinks(notes)}
-            </div>
-          )}
+          <div className="notes-content" ref={searchRef}>
+            {isEditingNotes ? (
+              <textarea
+                className="notes-textarea"
+                value={notes}
+                onChange={handleNotesChange}
+                placeholder="Add your notes here..."
+                onKeyDown={handleNotesKeyDown}
+                autoFocus
+              />
+            ) : (
+              <div 
+                className="notes-display"
+                onClick={() => setIsEditingNotes(true)}
+              >
+                {formatNotesDisplay(notes)}
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="chat-section">
-          <h3>AI-Powered Chat</h3>
+        <div className={`chat-section ${isChatMaximized ? 'maximized' : ''}`}>
+          <div className="chat-header">
+            <h3>AI-Powered Chat</h3>
+            <button 
+              className="maximize-btn"
+              onClick={() => setIsChatMaximized(!isChatMaximized)}
+              title={isChatMaximized ? "Minimize" : "Maximize"}
+            >
+              {isChatMaximized ? '⎯' : '⤢'}
+            </button>
+          </div>
           <div className="messages">
             {messages.map(message => (
               <div key={message.id} className={`message ${message.role}`}>

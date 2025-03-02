@@ -13,7 +13,7 @@ public class SubTask {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(length = 1000)
     private String title;
 
     private boolean completed = false;

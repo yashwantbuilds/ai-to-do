@@ -102,3 +102,11 @@ input, textarea, select {
 button {
   border-color: var(--border-color);
 }
+
+/* Update theme toggle position */
+.theme-toggle {
+  position: fixed;
+  top: 12px;
+  right: 20px;
+  z-index: 1001;
+}

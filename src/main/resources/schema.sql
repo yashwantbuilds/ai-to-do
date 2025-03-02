@@ -40,6 +40,24 @@ CREATE TABLE subtasks (
     FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
 );
 
+-- Create problems table
+CREATE TABLE IF NOT EXISTS problems (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    link VARCHAR(1000) NOT NULL,
+    notes VARCHAR(4000),
+    status VARCHAR(20) DEFAULT 'UNSOLVED',
+    created_at TIMESTAMP NOT NULL
+);
+
+-- Create problem tags table
+CREATE TABLE IF NOT EXISTS problem_tags (
+    problem_id BIGINT NOT NULL,
+    tag VARCHAR(100) NOT NULL,
+    FOREIGN KEY (problem_id) REFERENCES problems(id) ON DELETE CASCADE
+);
+
 -- Create indexes
 CREATE INDEX idx_task_id ON chat_messages(task_id);
-CREATE INDEX idx_subtask_task_id ON subtasks(task_id); 
+CREATE INDEX idx_subtask_task_id ON subtasks(task_id);
+CREATE INDEX IF NOT EXISTS idx_problem_tags ON problem_tags(problem_id); 

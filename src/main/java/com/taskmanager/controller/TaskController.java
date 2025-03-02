@@ -17,6 +17,7 @@ import java.util.HashMap;
 import java.util.stream.Collectors;
 import com.taskmanager.dto.SubtaskUpdateRequest;
 import com.taskmanager.service.TaskService;
+import com.taskmanager.service.HuggingFaceService;
 
 @RestController
 @RequestMapping("/api/tasks")
@@ -30,6 +31,9 @@ public class TaskController {
 
     @Autowired
     private TaskService taskService;
+
+    @Autowired
+    private HuggingFaceService huggingFaceService;
 
     @GetMapping
     public List<Map<String, Object>> getAllTasks() {
@@ -298,6 +302,20 @@ public class TaskController {
                 task.setTotalPausedTime(0L);
                 task.setStatus(TaskStatus.NOT_STARTED);
                 return ResponseEntity.ok(taskRepository.save(task));
+            })
+            .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/{id}/generate-subtasks")
+    public ResponseEntity<List<String>> generateSubtasks(
+        @PathVariable Long id,
+        @RequestBody Map<String, String> body
+    ) {
+        return taskRepository.findById(id)
+            .map(task -> {
+                String prompt = body.get("prompt");
+                List<String> subtasks = huggingFaceService.generateSubtasks(task, prompt);
+                return ResponseEntity.ok(subtasks);
             })
             .orElse(ResponseEntity.notFound().build());
     }

@@ -2,24 +2,33 @@ package com.taskmanager.service;
 
 import com.taskmanager.model.ChatMessage;
 import com.taskmanager.model.Task;
+import com.taskmanager.model.SubTask;
 import com.taskmanager.repository.ChatMessageRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import okhttp3.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.Arrays;
+import java.util.Set;
 
 @Service
 public class HuggingFaceService {
     
     private final OkHttpClient client = new OkHttpClient();
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private static final okhttp3.MediaType JSON = okhttp3.MediaType.parse("application/json; charset=utf-8");
     
     @Autowired
     private ChatMessageRepository chatMessageRepository;
@@ -31,7 +40,7 @@ public class HuggingFaceService {
     private String apiToken;
 
     private static final String SYSTEM_PROMPT = 
-        "You are TaskPro, an AI assistant with dual expertise:\n\n" +
+        "You are an AI assistant with dual expertise:\n\n" +
         "1. Senior Software Engineer:\n" +
         "- Expert in Java, Spring Boot, and AWS\n" +
         "- Proficient in software architecture and design patterns\n" +
@@ -43,45 +52,19 @@ public class HuggingFaceService {
         "- Provide implementation guidance and code examples\n" +
         "- Suggest architectural approaches and technical solutions\n" +
         "- Identify technical challenges and mitigation strategies\n" +
-        "- Help prioritize development tasks\n\n" +
+        "- Help prioritize development tasks with help of subtasks\n\n" +
         "Provide practical, code-focused advice when discussing technical implementation, " +
         "and clear task management guidance for planning. Keep responses concise and actionable.";
 
-    public String generateResponse(String userPrompt, Long taskId) {
-        try {
-            // Get conversation history for this task
-            List<ChatMessage> chatHistory = chatMessageRepository.findAllByTaskId(taskId);
-            
-            // Build the conversation context
-            StringBuilder conversationBuilder = new StringBuilder();
-            conversationBuilder.append("System: ").append(SYSTEM_PROMPT).append("\n\n");
-            
-            // Add chat history
-            for (ChatMessage message : chatHistory) {
-                String role = message.getRole().equals("assistant") ? "Assistant" : "Human";
-                conversationBuilder.append(role).append(": ")
-                                 .append(message.getContent())
-                                 .append("\n\n");
-            }
-            
-            // Add the current user prompt
-            conversationBuilder.append("Human: ").append(userPrompt).append("\n\n");
-            conversationBuilder.append("Assistant: Let me help you with task planning. ");
+    private final RestTemplate restTemplate = new RestTemplate();
 
+    public String generateResponse(String prompt, Long taskId) {
+        try {
             Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("inputs", conversationBuilder.toString());
-            requestBody.put("parameters", Map.of(
-                "max_new_tokens", 500, // Increased token limit for context
-                "temperature", 0.7,
-                "top_p", 0.9,
-                "do_sample", true,
-                "return_full_text", false
-            ));
+            requestBody.put("inputs", prompt);
             
-            RequestBody body = RequestBody.create(
-                objectMapper.writeValueAsString(requestBody),
-                MediaType.parse("application/json")
-            );
+            String jsonBody = objectMapper.writeValueAsString(requestBody);
+            RequestBody body = RequestBody.create(jsonBody, JSON);
 
             Request request = new Request.Builder()
                 .url(apiUrl)
@@ -91,65 +74,151 @@ public class HuggingFaceService {
 
             try (Response response = client.newCall(request).execute()) {
                 if (!response.isSuccessful()) {
-                    throw new IOException("Unexpected response " + response);
+                    throw new RuntimeException("Unexpected response " + response);
                 }
                 
-                String responseBody = response.body().string();
-                return parseResponse(responseBody);
+                List<Map<String, Object>> responseBody = objectMapper.readValue(
+                    response.body().string(),
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, Map.class)
+                );
+                
+                if (responseBody != null && !responseBody.isEmpty()) {
+                    return (String) responseBody.get(0).get("generated_text");
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
-            return "I apologize, but I'm having trouble accessing my task planning capabilities. " +
-                   "Please try asking your question again, and I'll do my best to help.";
         }
+        return "Error generating response";
     }
 
-    private String parseResponse(String responseBody) {
-        try {
-            List<?> responses = objectMapper.readValue(responseBody, List.class);
-            if (responses != null && !responses.isEmpty()) {
-                Map<?, ?> firstResponse = (Map<?, ?>) responses.get(0);
-                String generatedText = (String) firstResponse.get("generated_text");
-                
-                if (generatedText != null && !generatedText.trim().isEmpty()) {
-                    // Clean up the response while preserving line breaks
-                    String cleaned = generatedText
-                        .replaceAll("(?i)Assistant:|Human:|System:", "")
-                        .replaceAll("Let me help you with task planning\\.", "")
-                        .trim();
-                    
-                    // Ensure proper line breaks for numbered lists and bullet points
-                    cleaned = cleaned
-                        .replaceAll("(\\d+\\.|•|\\*|-)\\s", "\n$0 ") // Add line break before numbers and bullets
-                        .replaceAll("\n{3,}", "\n\n") // Remove excessive line breaks
-                        .trim();
-                    
-                    if (cleaned.length() < 10) {
-                        return "Could you please provide more details about your task? " +
-                               "I'm here to help with planning and organization.";
-                    }
-                    
-                    return cleaned;
-                }
-            }
-            return "I'm ready to help you plan and organize your tasks. What would you like assistance with?";
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "I'm here to help with your task management. What specific aspect would you like to discuss?";
-        }
-    }
-
-    private String generateTaskGuidance(Task task) {
+    public String generateTaskGuidance(Task task) {
         StringBuilder prompt = new StringBuilder();
         prompt.append("For this ").append(task.getPriority().toString()).append(" priority task:\n")
               .append("Title: ").append(task.getTitle()).append("\n")
-              .append("Description: ").append(task.getDescription()).append("\n\n")
-              .append("As a senior software engineer and task planner, provide:\n")
-              .append("1. Technical approach: Suggest one key technical solution or architecture decision\n")
-              .append("2. First implementation step: Specific, actionable technical task to start with\n")
-              .append("3. Potential technical challenge: One specific technical consideration to watch out for\n")
-              .append("Keep the response technical yet concise, focusing on Java/Spring Boot best practices where applicable.");
+              .append("Description: ").append(task.getDescription()).append("\n");
+        
+        // Add subtasks information
+        if (!task.getSubtasks().isEmpty()) {
+            prompt.append("\nCurrent Subtasks Status:\n");
+            task.getSubtasks().forEach(subtask -> {
+                prompt.append("- ")
+                      .append(subtask.isCompleted() ? "[✓] " : "[ ] ")
+                      .append(subtask.getTitle());
+                if (subtask.getCompletedAt() != null) {
+                    prompt.append(" (Completed on: ")
+                          .append(subtask.getCompletedAt().toLocalDate())
+                          .append(")");
+                }
+                prompt.append("\n");
+            });
+            
+            // Add completion statistics
+            long completedCount = task.getSubtasks().stream()
+                    .filter(SubTask::isCompleted)
+                    .count();
+            prompt.append("\nProgress: ")
+                  .append(completedCount)
+                  .append("/")
+                  .append(task.getSubtasks().size())
+                  .append(" subtasks completed\n");
+        }
+
+        // Add task status and timing information
+        prompt.append("\nTask Status: ").append(task.getStatus());
+        if (task.getStartedAt() != null) {
+            prompt.append("\nStarted: ").append(task.getStartedAt().toLocalDate());
+        }
+        if (task.getScheduledTime() != null) {
+            prompt.append("\nScheduled for: ").append(task.getScheduledTime().toLocalDate());
+        }
+
+        prompt.append("\n\nBased on the current status and subtasks, please provide:");
+        prompt.append("\n1. Progress assessment and next steps");
+        prompt.append("\n2. Suggestions for any missing subtasks");
+        prompt.append("\n3. Priority recommendations for incomplete items");
+        if (task.getScheduledTime() != null) {
+            prompt.append("\n4. Timeline alignment with scheduled date");
+        }
         
         return generateResponse(prompt.toString(), task.getId());
+    }
+
+    public List<String> generateSubtasks(Task task, String userPrompt) {
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("For this task:\n")
+              .append("Title: ").append(task.getTitle()).append("\n")
+              .append("Description: ").append(task.getDescription()).append("\n");
+        
+        // Add existing subtasks for context
+        if (!task.getSubtasks().isEmpty()) {
+            prompt.append("\nExisting subtasks:\n");
+            task.getSubtasks().forEach(subtask -> {
+                prompt.append("- ").append(subtask.getTitle()).append("\n");
+            });
+        }
+        
+        prompt.append("\nUser request: ").append(userPrompt).append("\n\n")
+              .append("Check first, if its a technical task or a non technical task. ")
+              .append("If technical task: You are an expert of SQL, Java, Spring Boot, AWS, and Jooq, use these skills to generate new, unique subtasks that are not duplicates of existing ones. ")
+              .append("If non technical task: You are a task planning specialist, use your skills to generate new, unique subtasks that are not duplicates of existing ones. ");
+
+        String response = generateResponse(prompt.toString(), task.getId());
+        
+        // Parse and filter the response
+        Set<String> existingTitles = task.getSubtasks().stream()
+            .map(SubTask::getTitle)
+            .map(String::toLowerCase)
+            .collect(Collectors.toSet());
+        
+        // Parse, filter, and truncate new subtasks
+        return Arrays.stream(response.split("\n"))
+            .map(line -> line.replaceAll("^\\d+\\.\\s*|^-\\s*|^•\\s*", "").trim())
+            .filter(line -> !line.isEmpty())
+            .filter(line -> !existingTitles.contains(line.toLowerCase())) // Filter out duplicates
+            .map(line -> line.length() > 200 ? line.substring(0, 197) + "..." : line) // Truncate if too long
+            .distinct() // Remove any duplicates from the AI response
+            .collect(Collectors.toList());
+    }
+
+    public String generateMethodSignature(String problemDescription) {
+        if (problemDescription == null || problemDescription.trim().isEmpty()) {
+            return "// No problem description provided";
+        }
+
+        String prompt = String.format(
+            "Given this coding problem description, generate only a Java method signature with appropriate name and parameters. " +
+            "Include only the method declaration line with documentation. No implementation. Description: %s",
+            problemDescription
+        );
+        
+        try {
+            String response = generateResponse(prompt, null);
+            // Clean up the response to get just the method signature
+            return response.replaceAll("```java\\s*|```\\s*$", "").trim();
+        } catch (Exception e) {
+            return "// Error generating method signature";
+        }
+    }
+
+    public String generateImplementation(String methodSignature, String algorithm) {
+        String prompt = String.format(
+            "You are a Java programming expert. Given this method signature and algorithm, write a complete Java implementation.\n\n" +
+            "Method Signature:\n%s\n\n" +
+            "Algorithm Steps:\n%s\n\n" +
+            "Write only the complete Java method implementation with comments. Include proper error handling and edge cases. " +
+            "The code should be production-ready and follow best practices. " +
+            "Return only the code without any explanations or markdown.",
+            methodSignature,
+            algorithm
+        );
+        
+        try {
+            String response = generateResponse(prompt, null);
+            // Clean up the response to get just the implementation
+            return response.replaceAll("```java\\s*|```\\s*$", "").trim();
+        } catch (Exception e) {
+            return String.format("%s {\n    // Error generating implementation\n}", methodSignature);
+        }
     }
 } 
